@@ -1,0 +1,2 @@
+Compilation:
+gcc Serial_SHM_Win.c -o Serial_SHM_Win -lws2_32

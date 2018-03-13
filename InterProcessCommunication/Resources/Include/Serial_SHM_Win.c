@@ -7,25 +7,27 @@
 //#pragma comment(lib, "user32.lib")
 
 
-struct DataExchange {
+/*struct DataExchange {
     char sendVal[10][32];
     double getVal[10];
-};
+};*/
+//struct DataExchange *PID;
 
-#define BUF_SIZE sizeof(struct DataExchange)
+#define BUF_SIZE 256
 
-struct DataExchange *PID;
 static HANDLE hMapFile;
+char returnVal[BUF_SIZE]="";
 
 TCHAR szName[]=TEXT("Global\\MyFileMappingObject");
-//TCHAR szMsg[]=TEXT("Message from first process.");
+TCHAR szMsg[]=TEXT("Message from first process.");
 
 __declspec(dllexport)  __stdcall void shmWrite(int num1,double tagValue)
 {
 
-   LPCTSTR pBuf;
+   //LPCTSTR pBuf;
+   char* pBuf;
 
-   hMapFile = CreateFileMapping(
+   hMapFile = CreateFileMappingA(
                  INVALID_HANDLE_VALUE,    // use paging file
                  NULL,                    // default security
                  PAGE_READWRITE,          // read/write access
@@ -33,13 +35,23 @@ __declspec(dllexport)  __stdcall void shmWrite(int num1,double tagValue)
                  BUF_SIZE,                // maximum object size (low-order DWORD)
                  szName);                 // name of mapping object
 
+   if (GetLastError() == ERROR_ALREADY_EXISTS) {
+        hMapFile = OpenFileMappingA(FILE_MAP_ALL_ACCESS, FALSE, szName);
+   }
+
    if (hMapFile == NULL)
    {
       _tprintf(TEXT("Could not create file mapping object (%d).\n"),
              GetLastError());
       exit(1);
    }
-   pBuf = (LPTSTR) MapViewOfFile(hMapFile,   // handle to map object
+   /*pBuf = (LPTSTR) MapViewOfFile(hMapFile,   // handle to map object
+                        FILE_MAP_ALL_ACCESS, // read/write permission
+                        0,
+                        0,
+                        BUF_SIZE);
+    */
+   pBuf = (char*) MapViewOfFile(hMapFile,   // handle to map object
                         FILE_MAP_ALL_ACCESS, // read/write permission
                         0,
                         0,
@@ -51,15 +63,16 @@ __declspec(dllexport)  __stdcall void shmWrite(int num1,double tagValue)
              GetLastError());
 
        CloseHandle(hMapFile);
-	  exit(1);
+	     exit(1);
    }
 
-   char outData[]="";
-   sprintf(outData,"%d,%g\n", num1, tagValue);
-   strcpy(PID-> sendVal[num1], outData);
+   char outData[256]="";
+   sprintf(outData,"%d,%f\n", num1, tagValue);
+   //strcpy(PID-> sendVal[num1], outData);
 
-   CopyMemory((PVOID)pBuf, PID, sizeof(struct DataExchange));
-    _getch();
+   memcpy(pBuf,outData,BUF_SIZE);
+   //CopyMemory((PVOID)pBuf, PID, sizeof(struct DataExchange));
+   //_getch();
 
    UnmapViewOfFile(pBuf);
 
@@ -69,13 +82,12 @@ __declspec(dllexport)  __stdcall void shmWrite(int num1,double tagValue)
 
 
 
-
-
 __declspec(dllexport)  __stdcall char* shmRead(int num2)
 {
-   LPCTSTR pBuf;
-   TCHAR szName[]=TEXT("Global\\MyFileMappingObject");
-   hMapFile = OpenFileMapping(
+   //LPCTSTR pBuf;
+   char* pBuf;
+
+   hMapFile = OpenFileMappingA(
                    FILE_MAP_ALL_ACCESS,   // read/write access
                    FALSE,                 // do not inherit the name
                    szName);               // name of mapping object
@@ -84,10 +96,17 @@ __declspec(dllexport)  __stdcall char* shmRead(int num2)
    {
       _tprintf(TEXT("Could not open file mapping object (%d).\n"),
              GetLastError());
-      exit(1);
+      //exit(1);
+      return returnVal;
    }
 
-   pBuf = (LPTSTR) MapViewOfFile(hMapFile, // handle to map object
+   /*pBuf = (LPTSTR) MapViewOfFile(hMapFile, // handle to map object
+               FILE_MAP_ALL_ACCESS,  // read/write permission
+               0,
+               0,
+               BUF_SIZE);
+    */
+   pBuf = (char*) MapViewOfFile(hMapFile, // handle to map object
                FILE_MAP_ALL_ACCESS,  // read/write permission
                0,
                0,
@@ -99,18 +118,19 @@ __declspec(dllexport)  __stdcall char* shmRead(int num2)
              GetLastError());
 
       CloseHandle(hMapFile);
-	  exit(1);
+	    //exit(1);
+      return returnVal;
    }
-   PID = (struct DataExchange*)pBuf;
+   //PID = (struct DataExchange*)pBuf;
    //MessageBox(NULL, pBuf, TEXT("Process2"), MB_OK);
-
+   
+   memcpy(returnVal,pBuf,BUF_SIZE);
+   //printf("InData:%s",returnVal);
 
    UnmapViewOfFile(pBuf);
 
    CloseHandle(hMapFile);
 
-   char* returnVal;
-   returnVal = PID->sendVal[num2];
    return returnVal;
 }
 
@@ -120,7 +140,7 @@ int _tmain()
     int S_Port;
 	  int S_Baud;
     printf("Serial Port (e.g. 5 for COM5) : ");
-    scanf("%u", &S_Port);
+    scanf("%d", &S_Port);
     printf("Baud Rate (e.g. 115200) : ");
     scanf("%d", &S_Baud);
     serialBegin(&S_Port, &S_Baud);
@@ -129,29 +149,27 @@ int _tmain()
 	 while(1)
     {
     	  char* outData;
-        char someData[32]="";
+        char someData[256]="";
         const char* inData;
         char val[10]="";
         char addr[10]="";
         int i,j;
 
-         for (i=0; i<10; i++)
-         {
-             outData = shmRead(i);
-             if(strcmp(outData, "") == 0);
-             else{
-             	_tprintf("input:%s", outData);
-             	serialWrite(outData);
-             	Sleep(1000);
-             	strcpy(PID->sendVal[i], "");
-             }
-         }
+        outData = shmRead(1);
+        Sleep(1000);
+        if(strcmp(outData, "") == 0);
+        else{
+        	_tprintf("input:%s", outData);
+        	serialWrite(outData);
+        	//Sleep(1000);
+        	//strcpy(PID->sendVal[i], "");
+        }
 
         if(serialAvailable()>0)
         {
                 inData = serialRead();
                 strcpy(someData, inData);
-                _tprintf("ardOutput:%s\n", someData);
+                _tprintf("ardOutput:%s", someData);
                 for(i=0; i<strlen(someData); i++)
                 {
                     if(someData[i]==',')
@@ -170,6 +188,6 @@ int _tmain()
                 shmWrite(atoi(addr), atof(val));
         }
     }
-printf("came out of loop..!");
-serialEnd();
+  printf("came out of loop..!");
+  serialEnd();
 }

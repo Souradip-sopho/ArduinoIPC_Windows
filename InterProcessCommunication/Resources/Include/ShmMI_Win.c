@@ -90,7 +90,7 @@ __declspec(dllexport)  __stdcall double shmRead(int num2)
 {
    //LPCTSTR pBuf;
    char* pBuf;
-   printf("Opening...\n");
+   printf("Staring Shared Memory Read...\n");
    hMapFile = OpenFileMappingA(
                    FILE_MAP_ALL_ACCESS,   // read/write access
                    FALSE,                 // do not inherit the name
@@ -135,6 +135,12 @@ __declspec(dllexport)  __stdcall double shmRead(int num2)
    float returnVal;
    if(sscanf(inData,"%d,%f\n",&adr,&returnVal)==0)
 	     printf("Error reading shared memory\n");
+   if(adr!=num2)
+    {
+      printf("Error accessing shared memory\n");
+      CloseHandle(hMapFile);
+      return 1;
+    }  
 	 printf("OutputValue:%f\n",returnVal);
    UnmapViewOfFile(pBuf);
 
