@@ -13,6 +13,7 @@
 #include <ctype.h>
 #include <conio.h>
 #include <tchar.h>
+#include <io.h>
 
 
 
@@ -26,6 +27,7 @@
 
 // Static definition to stock HANDLE of Port.
 static HANDLE hport;
+static char read_buff[32]="";
 
 // Function to open port COM
 __declspec(dllexport)  __stdcall int serialBegin(int *port, int *baudrate){
@@ -102,11 +104,11 @@ __declspec (dllexport) __stdcall void serialWrite(char* write_buff){
 	int res;
 	int OK=0;
 	res = WriteFile(hport,write_buff,strlen(write_buff),&dwBytesWrite,NULL);
-
 	if (res==0) //error
 	{
 		OK = GetLastError();
-		fprintf(stderr, "Error in writing data");
+		fprintf(stderr, "Error in writing data (%d).",OK);
+		exit(1);
 	}
 }
 
@@ -127,27 +129,32 @@ __declspec (dllexport) __stdcall int serialStatus(){
 
 __declspec (dllexport) __stdcall const char* serialRead(){
 
-	static char read_buff[32]="";
+	//static char read_buff[32]="";
 	DWORD dwBytesRead = 0;
 	char temp_char='\0';
 	int i=0;
-
 	for(i=0; i<32; i++)
 	{
-		int byte_r = ReadFile(hport, &temp_char, 1, &dwBytesRead, NULL);
-		if(temp_char == '\n' || temp_char == '\r') break;
+		temp_char=read_buff[i];	
+		//int byte_r = ReadFile(hport, &temp_char, 1, &dwBytesRead, NULL);
+		if(temp_char == '\n') break;	
 
-		read_buff[i] = temp_char;
+		//read_buff[i] = temp_char;
 	}
 	read_buff[i] = '\0';
+	printf("R:%s\n",read_buff);
 	return read_buff;
 }
 
 __declspec (dllexport) __stdcall int serialAvailable()
 {
 	unsigned long find;
-	ioctlsocket((SOCKET)hport, FIONREAD, &find);
-	//int returned;
+	//ioctlsocket((SOCKET)hport, FIONREAD, &find);
+	char buffer[32]="";
+	ReadFile(hport, buffer, 32, &find, NULL);
+	//printf("Buffer:%s",buffer);
+	memcpy(read_buff,buffer,32);
+	//unsigned long returned;
 	//int res=DeviceIoControl(hport,FSCTL_CREATE_OR_GET_OBJECT_ID,NULL,0,&find,sizeof(int),&returned,sizeof(int));
 	Sleep(1);
 	return (int)find;
@@ -158,7 +165,11 @@ __declspec (dllexport) __stdcall void serialFlush()
 	int OK=0;
 	int res = PurgeComm(hport,PURGE_RXABORT|PURGE_TXABORT|PURGE_RXCLEAR|PURGE_TXCLEAR);
 	if (res==0)//error
+	{
 		OK = GetLastError();
+		_tprintf(TEXT("Error in Serial Flush (%d).\n"),OK);
+		exit(1);
+	}
 	//return OK;
 }
 
@@ -168,7 +179,11 @@ __declspec (dllexport) __stdcall void serialWait()
 	LPDWORD event;
 	int res = WaitCommEvent(hport,event,NULL);
 	if (res==0)//error
+	{
 		OK = GetLastError();
+		_tprintf(TEXT("Error in Serial Wait (%d).\n"),OK);
+		exit(1);
+	}
 	//return OK;
 }
 
@@ -177,7 +192,11 @@ __declspec (dllexport) __stdcall void serialEnd()
 	int OK=0;
 	int res = CloseHandle(hport);
 	if (res==0)//error
+	{
 		OK = GetLastError();
+		_tprintf(TEXT("Error Closing Serial Port (%d).\n"),OK);
+		exit(1);
+	}
 	//return OK;
 }
 

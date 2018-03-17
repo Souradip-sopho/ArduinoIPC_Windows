@@ -16,12 +16,11 @@
 #define BUF_SIZE 256
 
 static HANDLE hMapFile;
-char returnVal[BUF_SIZE]="";
 
 TCHAR szName[]=TEXT("Global\\MyFileMappingObject");
 TCHAR szMsg[]=TEXT("Message from first process.");
 
-__declspec(dllexport)  __stdcall void shmWrite(int num1,double tagValue)
+__declspec(dllexport)  __stdcall void shmWriteSerial(int num1,double tagValue)
 {
 
    //LPCTSTR pBuf;
@@ -67,7 +66,7 @@ __declspec(dllexport)  __stdcall void shmWrite(int num1,double tagValue)
    }
 
    char outData[256]="";
-   sprintf(outData,"%d,%f\n", num1, tagValue);
+   sprintf(outData,"%d,%g\n", num1, tagValue);
    //strcpy(PID-> sendVal[num1], outData);
 
    memcpy(pBuf,outData,BUF_SIZE);
@@ -82,10 +81,12 @@ __declspec(dllexport)  __stdcall void shmWrite(int num1,double tagValue)
 
 
 
-__declspec(dllexport)  __stdcall char* shmRead(int num2)
+__declspec(dllexport)  __stdcall char* shmReadSerial(int num2)
 {
    //LPCTSTR pBuf;
    char* pBuf;
+   static char returnVal[BUF_SIZE]="";
+   //char temp[256]="";
 
    hMapFile = OpenFileMappingA(
                    FILE_MAP_ALL_ACCESS,   // read/write access
@@ -125,7 +126,24 @@ __declspec(dllexport)  __stdcall char* shmRead(int num2)
    //MessageBox(NULL, pBuf, TEXT("Process2"), MB_OK);
    
    memcpy(returnVal,pBuf,BUF_SIZE);
+   //memcpy(pBuf,temp,BUF_SIZE);
    //printf("InData:%s",returnVal);
+   int adr; 
+   float Val;
+   if(sscanf(returnVal,"%d,%g\n",&adr,&Val)==0)
+   {
+      _tprintf(TEXT("Error reading shared memory\n"));
+      UnmapViewOfFile(pBuf);
+      CloseHandle(hMapFile);
+      return "";
+   }
+   if(adr!=num2)
+   {
+      _tprintf(TEXT("Error accessing shared memory\n"));
+      UnmapViewOfFile(pBuf);
+      CloseHandle(hMapFile);
+      return "";
+   }  
 
    UnmapViewOfFile(pBuf);
 
@@ -149,27 +167,29 @@ int _tmain()
 	 while(1)
     {
     	  char* outData;
-        char someData[256]="";
+        char someData[32]="";
         const char* inData;
         char val[10]="";
         char addr[10]="";
         int i,j;
 
-        outData = shmRead(1);
-        Sleep(1000);
+        outData = shmReadSerial(1);
+        //Sleep(1000);
         if(strcmp(outData, "") == 0);
         else{
-        	_tprintf("input:%s", outData);
+        	printf("input:%s", outData);
         	serialWrite(outData);
-        	//Sleep(1000);
+        	Sleep(1000);
+          strcpy(outData,"");
         	//strcpy(PID->sendVal[i], "");
         }
 
+        //printf("Available:%d\n",serialAvailable());  
         if(serialAvailable()>0)
         {
                 inData = serialRead();
                 strcpy(someData, inData);
-                _tprintf("ardOutput:%s", someData);
+                printf("ardOutput:%s\n", someData);
                 for(i=0; i<strlen(someData); i++)
                 {
                     if(someData[i]==',')
@@ -185,7 +205,7 @@ int _tmain()
                 {
                     val[j-i] = someData[j];
                 }
-                shmWrite(atoi(addr), atof(val));
+                shmWriteSerial(1, atof(val));
         }
     }
   printf("came out of loop..!");

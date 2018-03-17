@@ -67,7 +67,7 @@ __declspec(dllexport)  __stdcall double shmWrite(int num1,double tagValue)
    }
    
    char outData[256]="";
-   sprintf(outData,"%d,%f\n", num1, tagValue);
+   sprintf(outData,"%d,%g\n", num1, tagValue);
    printf("OutData:%s",outData);
    /*TCHAR outData[]=TEXT("");
    _stprintf(outData,"%d,%g\n",num1,tagValue);
@@ -100,7 +100,7 @@ __declspec(dllexport)  __stdcall double shmRead(int num2)
    {
       _tprintf(TEXT("Could not open file mapping object (%d).\n"),
              GetLastError());
-	     return 1;
+	     return 0;
    }
 
    /*pBuf = (LPTSTR) MapViewOfFile(hMapFile, // handle to map object
@@ -121,7 +121,7 @@ __declspec(dllexport)  __stdcall double shmRead(int num2)
              GetLastError());
 
       CloseHandle(hMapFile);
-      return 1;
+      return 0;
    }
 
    //printf("p:%s",pBuf);
@@ -133,15 +133,20 @@ __declspec(dllexport)  __stdcall double shmRead(int num2)
    printf("InData:%s",inData);
 	 int adr;	
    float returnVal;
-   if(sscanf(inData,"%d,%f\n",&adr,&returnVal)==0)
-	     printf("Error reading shared memory\n");
+   if(sscanf(inData,"%d,%g\n",&adr,&returnVal)==0)
+   {
+	    _tprintf(TEXT("Error reading shared memory\n"));
+      UnmapViewOfFile(pBuf);
+      CloseHandle(hMapFile);
+   }
    if(adr!=num2)
     {
-      printf("Error accessing shared memory\n");
+      _tprintf(TEXT("Error accessing shared memory\n"));
+      UnmapViewOfFile(pBuf);
       CloseHandle(hMapFile);
-      return 1;
+      return 0;
     }  
-	 printf("OutputValue:%f\n",returnVal);
+	 printf("OutputValue:%g\n",returnVal);
    UnmapViewOfFile(pBuf);
 
    CloseHandle(hMapFile);
