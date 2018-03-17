@@ -27,7 +27,6 @@
 
 // Static definition to stock HANDLE of Port.
 static HANDLE hport;
-static char read_buff[32]="";
 
 // Function to open port COM
 __declspec(dllexport)  __stdcall int serialBegin(int *port, int *baudrate){
@@ -121,16 +120,22 @@ __declspec (dllexport) __stdcall int serialStatus(){
 	res=ClearCommError( hport, &dwErrorFlags, &ComStat );
 	if (res==0) {//error
 		OK = GetLastError();
-        return OK;
 	}
 	//*nbread=ComStat.cbInQue;
 	//*nbwrite=ComStat.cbOutQue;
+	return OK;
 }
 
 __declspec (dllexport) __stdcall const char* serialRead(){
 
-	//static char read_buff[32]="";
+	static char read_buff[32]="";
 	DWORD dwBytesRead = 0;
+	int byte_r = ReadFile(hport, read_buff, 32, &dwBytesRead, NULL);
+	if(byte_r==0)
+	{
+		_tprintf(TEXT("Error reading Serial Port (%d).n"),GetLastError());
+		return "";
+	}
 	char temp_char='\0';
 	int i=0;
 	for(i=0; i<32; i++)
@@ -142,7 +147,7 @@ __declspec (dllexport) __stdcall const char* serialRead(){
 		//read_buff[i] = temp_char;
 	}
 	read_buff[i] = '\0';
-	printf("R:%s\n",read_buff);
+	printf("%s\n",read_buff);
 	return read_buff;
 }
 
@@ -150,14 +155,29 @@ __declspec (dllexport) __stdcall int serialAvailable()
 {
 	unsigned long find;
 	//ioctlsocket((SOCKET)hport, FIONREAD, &find);
-	char buffer[32]="";
-	ReadFile(hport, buffer, 32, &find, NULL);
-	//printf("Buffer:%s",buffer);
-	memcpy(read_buff,buffer,32);
+	//char buffer[32]="";
 	//unsigned long returned;
 	//int res=DeviceIoControl(hport,FSCTL_CREATE_OR_GET_OBJECT_ID,NULL,0,&find,sizeof(int),&returned,sizeof(int));
-	Sleep(1);
-	return (int)find;
+	DWORD dwErrorFlags;
+	COMSTAT ComStat;
+	int res;
+
+	int OK=0;
+	res=ClearCommError( hport, &dwErrorFlags, &ComStat );
+	if (res==0) {//error
+		OK = GetLastError();
+		return 0;
+	}
+	//Sleep(1);
+	find=ComStat.cbInQue;
+	if (find<32)
+	{		
+		return find;
+	}
+	else
+	{
+		return 0;
+	}
 }
 
 __declspec (dllexport) __stdcall void serialFlush()

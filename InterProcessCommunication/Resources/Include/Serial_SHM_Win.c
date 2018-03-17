@@ -86,7 +86,6 @@ __declspec(dllexport)  __stdcall char* shmReadSerial(int num2)
    //LPCTSTR pBuf;
    char* pBuf;
    static char returnVal[BUF_SIZE]="";
-   //char temp[256]="";
 
    hMapFile = OpenFileMappingA(
                    FILE_MAP_ALL_ACCESS,   // read/write access
@@ -126,7 +125,9 @@ __declspec(dllexport)  __stdcall char* shmReadSerial(int num2)
    //MessageBox(NULL, pBuf, TEXT("Process2"), MB_OK);
    
    memcpy(returnVal,pBuf,BUF_SIZE);
-   //memcpy(pBuf,temp,BUF_SIZE);
+   
+   // char temp[256]="";
+   // memcpy(pBuf,temp,BUF_SIZE);
    //printf("InData:%s",returnVal);
    int adr; 
    float Val;
@@ -184,7 +185,7 @@ int _tmain()
         	//strcpy(PID->sendVal[i], "");
         }
 
-        //printf("Available:%d\n",serialAvailable());  
+        printf("Available:%d\n",serialAvailable());  
         if(serialAvailable()>0)
         {
                 inData = serialRead();
