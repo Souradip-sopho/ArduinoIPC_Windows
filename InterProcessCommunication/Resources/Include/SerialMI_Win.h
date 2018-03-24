@@ -168,16 +168,12 @@ __declspec (dllexport) __stdcall int serialAvailable()
 		OK = GetLastError();
 		return 0;
 	}
-	//Sleep(1);
+	Sleep(1);
 	find=ComStat.cbInQue;
 	if (find<32)
-	{		
 		return find;
-	}
 	else
-	{
 		return 0;
-	}
 }
 
 __declspec (dllexport) __stdcall void serialFlush()

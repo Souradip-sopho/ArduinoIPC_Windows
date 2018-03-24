@@ -20,7 +20,7 @@ static HANDLE hMapFile;
 TCHAR szName[]=TEXT("Global\\MyFileMappingObject");
 TCHAR szMsg[]=TEXT("Message from first process.");
 
-__declspec(dllexport)  __stdcall void shmWriteSerial(int num1,double tagValue)
+__declspec(dllexport)  __stdcall void shmWrite(int num1,double tagValue)
 {
 
    //LPCTSTR pBuf;
@@ -72,6 +72,7 @@ __declspec(dllexport)  __stdcall void shmWriteSerial(int num1,double tagValue)
    memcpy(pBuf,outData,BUF_SIZE);
    //CopyMemory((PVOID)pBuf, PID, sizeof(struct DataExchange));
    //_getch();
+   //FlushViewOfFile (hMapFile, BUF_SIZE);
 
    UnmapViewOfFile(pBuf);
 
@@ -81,7 +82,7 @@ __declspec(dllexport)  __stdcall void shmWriteSerial(int num1,double tagValue)
 
 
 
-__declspec(dllexport)  __stdcall char* shmReadSerial(int num2)
+__declspec(dllexport)  __stdcall char* shmRead(int num2)
 {
    //LPCTSTR pBuf;
    char* pBuf;
@@ -94,8 +95,8 @@ __declspec(dllexport)  __stdcall char* shmReadSerial(int num2)
 
    if (hMapFile == NULL)
    {
-      _tprintf(TEXT("Could not open file mapping object (%d).\n"),
-             GetLastError());
+      //_tprintf(TEXT("Could not open file mapping object (%d).\n"),
+      //       GetLastError());
       //exit(1);
       return returnVal;
    }
@@ -131,21 +132,23 @@ __declspec(dllexport)  __stdcall char* shmReadSerial(int num2)
    //printf("InData:%s",returnVal);
    int adr; 
    float Val;
-   if(sscanf(returnVal,"%d,%g\n",&adr,&Val)==0)
+   if(strcmp(returnVal,"")!=0)
    {
-      _tprintf(TEXT("Error reading shared memory\n"));
-      UnmapViewOfFile(pBuf);
-      CloseHandle(hMapFile);
-      return "";
+     if(sscanf(returnVal,"%d,%g\n",&adr,&Val)==0)
+     {
+        _tprintf(TEXT("Error reading shared memory\n"));
+        UnmapViewOfFile(pBuf);
+        CloseHandle(hMapFile);
+        return "";
+     }
+     if(adr!=num2)
+     {
+        _tprintf(TEXT("Error accessing shared memory\n"));
+        UnmapViewOfFile(pBuf);
+        CloseHandle(hMapFile);
+        return "";
+     }  
    }
-   if(adr!=num2)
-   {
-      _tprintf(TEXT("Error accessing shared memory\n"));
-      UnmapViewOfFile(pBuf);
-      CloseHandle(hMapFile);
-      return "";
-   }  
-
    UnmapViewOfFile(pBuf);
 
    CloseHandle(hMapFile);
@@ -153,7 +156,7 @@ __declspec(dllexport)  __stdcall char* shmReadSerial(int num2)
    return returnVal;
 }
 
-int _tmain()
+int main()
 {
 	//char S_Port[32]="";
     int S_Port;
@@ -174,7 +177,7 @@ int _tmain()
         char addr[10]="";
         int i,j;
 
-        outData = shmReadSerial(1);
+        outData = shmRead(1);
         //Sleep(1000);
         if(strcmp(outData, "") == 0);
         else{
@@ -185,7 +188,7 @@ int _tmain()
         	//strcpy(PID->sendVal[i], "");
         }
 
-        printf("Available:%d\n",serialAvailable());  
+        //printf("Available:%d\n",serialAvailable());  
         if(serialAvailable()>0)
         {
                 inData = serialRead();
@@ -206,7 +209,7 @@ int _tmain()
                 {
                     val[j-i] = someData[j];
                 }
-                shmWriteSerial(1, atof(val));
+                shmWrite(1, atof(val));
         }
     }
   printf("came out of loop..!");

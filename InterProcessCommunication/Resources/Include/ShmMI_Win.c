@@ -78,7 +78,7 @@ __declspec(dllexport)  __stdcall double shmWrite(int num1,double tagValue)
    //CopyMemory((PVOID)pBuf, outData, (_tcslen(outData) * sizeof(TCHAR)));
    //CopyMemory((PVOID)pBuf, outData, strlen(outData)*sizeof(char));
    //_getch();
-  
+   FlushViewOfFile (hMapFile, BUF_SIZE);
    UnmapViewOfFile(pBuf);
 
    //CloseHandle(hMapFile);
@@ -132,21 +132,24 @@ __declspec(dllexport)  __stdcall double shmRead(int num2)
    memcpy(inData,pBuf,BUF_SIZE);
    printf("InData:%s",inData);
 	 int adr;	
-   float returnVal;
-   if(sscanf(inData,"%d,%g\n",&adr,&returnVal)==0)
+   float returnVal=0;
+   if(strcmp(inData,"")!=0)
    {
-	    _tprintf(TEXT("Error reading shared memory\n"));
-      UnmapViewOfFile(pBuf);
-      CloseHandle(hMapFile);
+     if(sscanf(inData,"%d,%g\n",&adr,&returnVal)==0)
+     {
+  	    _tprintf(TEXT("Error reading shared memory\n"));
+        UnmapViewOfFile(pBuf);
+        CloseHandle(hMapFile);
+     }
+     if(adr!=num2)
+      {
+        _tprintf(TEXT("Error accessing shared memory\n"));
+        UnmapViewOfFile(pBuf);
+        CloseHandle(hMapFile);
+      }
+      
+  	 printf("OutputValue:%g\n",returnVal);
    }
-   if(adr!=num2)
-    {
-      _tprintf(TEXT("Error accessing shared memory\n"));
-      UnmapViewOfFile(pBuf);
-      CloseHandle(hMapFile);
-      return 0;
-    }  
-	 printf("OutputValue:%g\n",returnVal);
    UnmapViewOfFile(pBuf);
 
    CloseHandle(hMapFile);
