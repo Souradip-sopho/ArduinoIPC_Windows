@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <conio.h>
 #include <tchar.h>
-#include "serial_win.h"
-#pragma comment(lib, "user32.lib")
+#include "SerialMI_Win.h"
+// #pragma comment(lib, "user32.lib")
 
 #define BUF_SIZE 32
 
@@ -16,39 +16,39 @@ TCHAR szName2[]=TEXT("Global\\MyFileMappingObject2");
 
 int shmBegin()
 {
-   hMapFile1 = CreateFileMapping(
-               INVALID_HANDLE_VALUE,    // use paging file
-               NULL,                    // default security
-               PAGE_READWRITE,          // read/write access
-               0,                       // maximum object size (high-order DWORD)
-               BUF_SIZE,                // maximum object size (low-order DWORD)
-               szName1);                 // name of mapping object
-   if (hMapFile1 == NULL)
-   {
-      _tprintf(TEXT("Could not create file mapping object (%d).\n"),
-             GetLastError());
-      return 1;
-   }
-  hMapFile2 = CreateFileMapping(
-                 INVALID_HANDLE_VALUE,    // use paging file
-                 NULL,                    // default security
-                 PAGE_READWRITE,          // read/write access
-                 0,                       // maximum object size (high-order DWORD)
-                 BUF_SIZE,                // maximum object size (low-order DWORD)
-                 szName2);                 // name of mapping object
-  if (hMapFile2 == NULL)
-   {
-      _tprintf(TEXT("Could not create file mapping object (%d).\n"),
-             GetLastError());
-      return 1;
-   }
-   return 0;
+	hMapFile1 = CreateFileMapping(
+	           INVALID_HANDLE_VALUE,    // use paging file
+	           NULL,                    // default security
+	           PAGE_READWRITE,          // read/write access
+	           0,                       // maximum object size (high-order DWORD)
+	           BUF_SIZE,                // maximum object size (low-order DWORD)
+	           szName1);                 // name of mapping object
+	if (hMapFile1 == NULL)
+	{
+		_tprintf(TEXT("Could not create file mapping object (%d).\n"),
+		     GetLastError());
+		return 1;
+	}
+	hMapFile2 = CreateFileMapping(
+	             INVALID_HANDLE_VALUE,    // use paging file
+	             NULL,                    // default security
+	             PAGE_READWRITE,          // read/write access
+	             0,                       // maximum object size (high-order DWORD)
+	             BUF_SIZE,                // maximum object size (low-order DWORD)
+	             szName2);                 // name of mapping object
+	if (hMapFile2 == NULL)
+	{
+		_tprintf(TEXT("Could not create file mapping object (%d).\n"),
+		     GetLastError());
+		return 1;
+	}
+	return 0;
 }
 
 void shmEnd()
 {
-  CloseHandle(hMapFile1);
-  CloseHandle(hMapFile2);
+	CloseHandle(hMapFile1);
+	CloseHandle(hMapFile2);
 }
 
 __declspec(dllexport)  __stdcall void shmWrite(int num1,double tagValue)
@@ -61,12 +61,12 @@ __declspec(dllexport)  __stdcall void shmWrite(int num1,double tagValue)
                    FALSE,                 // do not inherit the name
                    szName1);               // name of mapping object
 
-   if (hMapFile1 == NULL)
-   {
-      _tprintf(TEXT("Could not open file mapping object (%d).\n"),
-             GetLastError());
-      return;
-   }
+	if (hMapFile1 == NULL)
+	{
+	  _tprintf(TEXT("Could not open file mapping object (%d).\n"),
+	         GetLastError());
+	  return;
+	}
 
 	pBuf = (LPTSTR) MapViewOfFile(hMapFile1,   // handle to map object
 	                    FILE_MAP_ALL_ACCESS, // read/write permission
@@ -86,7 +86,6 @@ __declspec(dllexport)  __stdcall void shmWrite(int num1,double tagValue)
 	sprintf(szMsg,"%d,%g\n", num1, tagValue);
 
 	CopyMemory((PVOID)pBuf, szMsg, (_tcslen(szMsg) * sizeof(TCHAR)));
-    //_getch();
 
 	UnmapViewOfFile(pBuf);
 }
@@ -106,8 +105,6 @@ __declspec(dllexport)  __stdcall char* shmRead(int num2)
 
 	if (hMapFile2 == NULL)
 	{
-		// _tprintf(TEXT("Could not open file mapping object (%d).\n"),
-		//     GetLastError());
 		return returnVal;
 	}
 
@@ -117,13 +114,10 @@ __declspec(dllexport)  __stdcall char* shmRead(int num2)
 						0,
 						BUF_SIZE);
 	
-
 	if (pBuf == NULL)
 	{
 		_tprintf(TEXT("Could not map view of file (%d).\n"),
 		    GetLastError());
-
-		// CloseHandle(hMapFile2);
 		return returnVal;
 	}
 
@@ -137,14 +131,12 @@ __declspec(dllexport)  __stdcall char* shmRead(int num2)
 		{
 			_tprintf(TEXT("Error reading shared memory\n"));
 			UnmapViewOfFile(pBuf);
-			// CloseHandle(hMapFile1);
 			return "";
 		}
 		if(adr!=num2)
 		{
 			_tprintf(TEXT("Error accessing shared memory\n"));
 			UnmapViewOfFile(pBuf);
-			// CloseHandle(hMapFile1);
 			return "";
 		}  
 	}
@@ -168,26 +160,35 @@ int main()
 	if(OK!=0)
 		return 0;
 
+	char prevData[]="-1,0\n";
+	int flag = 0;
+
 	while(1)
     {
     	char* outData;
         char someData[32]="";
         const char* inData;
         char val[31]="";
-        char addr[2]="";
+        char addr[3]="";
         int i=0,j=0;
 
         outData = shmRead(1);
-        if(strcmp(outData, "") == 0);
+        if(strcmp(outData, "") == 0){
+        	if(flag==0){
+        		flag = 1;
+	        	serialWrite(prevData);
+	        	Sleep(10);
+        	}
+        }
         else{
         	printf("input:%s", outData);
         	serialWrite(outData);
-        	Sleep(100);
+        	Sleep(10);
+        	//strcpy(prevData,outData);
             strcpy(outData,"");
         }
 
-        int A = serialAvailable();
-        printf("Available:%d\n",A); 
+        int A = serialAvailable(); 
         if(A>0)
         {
                 inData = serialRead();
@@ -208,11 +209,11 @@ int main()
                 {
                     val[j-i] = someData[j];
                 }
-                printf("ADR: %d\n",atoi(addr));
-                shmWrite(1, atof(val));
+                shmWrite(atoi(addr), atof(val));
         }
     }
-  printf("came out of loop..!");
-  shmEnd();
-  serialEnd();
+	printf("came out of loop..!");
+	shmEnd();
+	serialEnd();
+	return 0;
 }

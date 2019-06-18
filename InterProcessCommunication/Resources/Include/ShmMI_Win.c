@@ -2,9 +2,9 @@
 #include <stdio.h>
 #include <conio.h>
 #include <tchar.h>
-#pragma comment(lib, "user32.lib")
+// #pragma comment(lib, "user32.lib")
 
-#define BUF_SIZE 256
+#define BUF_SIZE 32
 
 TCHAR szName1[]=TEXT("Global\\MyFileMappingObject1");
 TCHAR szName2[]=TEXT("Global\\MyFileMappingObject2");
@@ -15,8 +15,8 @@ HANDLE hMapFile2;
 __declspec(dllexport)  __stdcall double shmWrite(int num1,double tagValue)
 {
 
-	printf("Starting Shared Memory Write..\n");
-	// LPCTSTR pBuf;
+	//printf("Starting Shared Memory Write..\n");
+
 	char* pBuf;
 
 	hMapFile2 = CreateFileMappingA(
@@ -28,7 +28,10 @@ __declspec(dllexport)  __stdcall double shmWrite(int num1,double tagValue)
 						szName2);                 // name of mapping object
 
 	if (GetLastError() == ERROR_ALREADY_EXISTS) {
-	    hMapFile2 = OpenFileMappingA(FILE_MAP_ALL_ACCESS, FALSE, szName2);
+	    hMapFile2 = OpenFileMappingA(
+    					FILE_MAP_ALL_ACCESS, 
+    					FALSE, 
+    					szName2);
 	}
 
 	if (hMapFile2 == NULL)
@@ -38,12 +41,6 @@ __declspec(dllexport)  __stdcall double shmWrite(int num1,double tagValue)
 		return 1;
 	}
 
-	/*pBuf = (LPTSTR) MapViewOfFile(hMapFile,   // handle to map object
-	                    FILE_MAP_ALL_ACCESS, // read/write permission
-	                    0,
-	                    0,
-	                    BUF_SIZE);
-	*/
 	pBuf = (char*) MapViewOfFile(hMapFile2,   // handle to map object
 	                    FILE_MAP_ALL_ACCESS, // read/write permission
 	                    0,
@@ -63,28 +60,17 @@ __declspec(dllexport)  __stdcall double shmWrite(int num1,double tagValue)
 	sprintf(outData,"%d,%g\n", num1, tagValue);
 	printf("OutData:%s",outData);
 
-	/*TCHAR outData[]=TEXT("");
-	_stprintf(outData,"%d,%g\n",num1,tagValue);
-	_tprintf("%s\n",outData);
-	*/
-
 	memcpy(pBuf,outData,BUF_SIZE);
-	//CopyMemory((PVOID)pBuf, outData, (_tcslen(outData) * sizeof(TCHAR)));
-	//CopyMemory((PVOID)pBuf, outData, strlen(outData)*sizeof(char));
-	//_getch();
-	//FlushViewOfFile (hMapFile, BUF_SIZE);
 	
 	UnmapViewOfFile(pBuf);
-	//CloseHandle(hMapFile);
-
 	return 0;
 }
 
 
 __declspec(dllexport)  __stdcall double shmRead(int num2)
 {
-	printf("Starting Shared Memory Read...\n");
-	// LPCTSTR pBuf;
+	// printf("Starting Shared Memory Read...\n");
+
 	char* pBuf;
 
 	hMapFile1 = OpenFileMappingA(
@@ -99,12 +85,6 @@ __declspec(dllexport)  __stdcall double shmRead(int num2)
 		 return 0;
 	}
 
-	/*pBuf = (LPTSTR) MapViewOfFile(hMapFile, // handle to map object
-						FILE_MAP_ALL_ACCESS,  // read/write permission
-						0,
-						0,
-						BUF_SIZE);
-	*/
 	pBuf = (char*) MapViewOfFile(hMapFile1, // handle to map object
 						FILE_MAP_ALL_ACCESS,  // read/write permission
 						0,
@@ -120,11 +100,7 @@ __declspec(dllexport)  __stdcall double shmRead(int num2)
 		return 0;
 	}
 
-	//printf("p:%s",pBuf);
-	//MessageBox(NULL, pBuf, TEXT("Process2"), MB_OK);
-
 	char inData[BUF_SIZE]="";
-	//memcpy(inData, pBuf, _tcslen(pBuf));
 	memcpy(inData,pBuf,BUF_SIZE);
 	printf("InData:%s",inData);
 
@@ -137,20 +113,15 @@ __declspec(dllexport)  __stdcall double shmRead(int num2)
 		{
 		    _tprintf(TEXT("Error reading shared memory\n"));
 			UnmapViewOfFile(pBuf);
-			// CloseHandle(hMapFile);
 		}
 		if(adr!=num2)
 		{
 			_tprintf(TEXT("Error accessing shared memory\n"));
 			UnmapViewOfFile(pBuf);
-			// CloseHandle(hMapFile);
 		}
-
-		printf("OutputValue: %d:%g\n",adr,returnVal);
 	}
 
 	UnmapViewOfFile(pBuf);
-	//CloseHandle(hMapFile);
 
 	return returnVal;
 }
