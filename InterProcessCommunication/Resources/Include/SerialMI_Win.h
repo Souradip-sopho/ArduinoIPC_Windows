@@ -1,5 +1,5 @@
-#ifndef serian_win_H_
-#define serial_win_H_
+#ifndef SerialMI_Win_H_
+#define SerialMI_Win_H_
 
 #include <winsock2.h>
 #include <stdlib.h>
@@ -19,16 +19,36 @@
 
 HANDLE hComm;                          // Handle to the Serial port		
 
+char ComPortName[32]; // Name of the Serial port(May Change) to be opened,
 
-__declspec(dllexport)  __stdcall int serialBegin(int *port, int *baudrate){
+__declspec(dllexport)  __stdcall void serialBegin(int *port, int *baudrate){
 		
-		int OK;
-		char   ComPortName[] = "\\\\.\\COM2"; // Name of the Serial port(May Change) to be opened,
 		BOOL   Status;
 		
-		// printf("\n\n +==========================================+");
-		// printf("\n |  Serial Transmission (Win32 API)         |");
-		// printf("\n +==========================================+\n");
+		/*----------------------------------- Setting the Serial Port Name & Baurate--------------------------------------------*/
+		sprintf(ComPortName,"\\\\.\\COM%d",*port);
+		int BDR = CBR_9600;
+		switch(*baudrate)
+		{
+			case 110: {BDR = CBR_110;break;}
+			case 300: {BDR = CBR_300;break;}
+			case 600: {BDR = CBR_600;break;}
+			case 1200: {BDR = CBR_1200;break;}
+			case 2400: {BDR = CBR_2400;break;}
+			case 4800: {BDR = CBR_4800;break;}
+			case 9600: {BDR = CBR_9600;break;}
+			case 14400: {BDR = CBR_14400;break;}
+			case 19200: {BDR = CBR_19200;break;}
+			case 38400: {BDR = CBR_38400;break;}
+			case 56000: {BDR = CBR_56000;break;}
+			case 57600: {BDR = CBR_57600;break;}
+			case 115200: {BDR = CBR_115200;break;}
+			case 128000: {BDR = CBR_128000;break;}
+			case 256000: {BDR = CBR_256000;break;}
+			default: break;
+		}
+
+
 		/*----------------------------------- Opening the Serial Port --------------------------------------------*/
 
 		hComm = CreateFile( ComPortName,                       // Name of the Port to be Opened
@@ -39,8 +59,10 @@ __declspec(dllexport)  __stdcall int serialBegin(int *port, int *baudrate){
 							0,                                 // Non Overlapped I/O
 							NULL);                             // Null for Comm Devices
 
-		if (hComm == INVALID_HANDLE_VALUE)
+		if (hComm == INVALID_HANDLE_VALUE){
 			printf("Error! - Port %s can't be opened\n", ComPortName);
+			exit(1);
+		}
 		else 
 			printf("Port %s Opened\n", ComPortName);
 
@@ -52,10 +74,13 @@ __declspec(dllexport)  __stdcall int serialBegin(int *port, int *baudrate){
 		
 		Status = GetCommState(hComm, &dcbSerialParams);     //retreives  the current settings
 
-		if (Status == FALSE)
+		if (Status == FALSE){
 			printf("Error! in GetCommState()\n");
+			exit(1);
+		}
 
-		dcbSerialParams.BaudRate = CBR_115200;      // Setting BaudRate = 9600
+
+		dcbSerialParams.BaudRate = BDR;    // Setting BaudRate = *baudrate
 		dcbSerialParams.ByteSize = 8;             // Setting ByteSize = 8
 		dcbSerialParams.StopBits = ONESTOPBIT;    // Setting StopBits = 1
 		dcbSerialParams.Parity   = NOPARITY;      // Setting Parity = None 
@@ -65,14 +90,7 @@ __declspec(dllexport)  __stdcall int serialBegin(int *port, int *baudrate){
 		if (Status == FALSE)
 		{
 			printf("Error! in Setting DCB Structure\n");
-		}
-		else
-		{
-			printf("Setting DCB Structure Successfull\n");
-			// printf("\n       Baudrate = %d", dcbSerialParams.BaudRate);
-			// printf("\n       ByteSize = %d", dcbSerialParams.ByteSize);
-			// printf("\n       StopBits = %d", dcbSerialParams.StopBits);
-			// printf("\n       Parity   = %d", dcbSerialParams.Parity);
+			exit(1);
 		}
 		
 		/*------------------------------------ Setting Timeouts --------------------------------------------------*/
@@ -85,25 +103,23 @@ __declspec(dllexport)  __stdcall int serialBegin(int *port, int *baudrate){
 		timeouts.WriteTotalTimeoutConstant   = 50;
 		timeouts.WriteTotalTimeoutMultiplier = 10;
 
-		if (SetCommTimeouts(hComm, &timeouts) == FALSE)
+		if (SetCommTimeouts(hComm, &timeouts) == FALSE){
 			printf("Error! in Setting Time Outs\n");
-		else
-			printf("Setting Serial Port Timeouts Successfull\n");
+			exit(1);
+		}
 
-		return OK;
 }
-
 
 __declspec(dllexport) __stdcall void serialWrite(char* write_buff){
 
 	BOOL   Status;
-	char   ComPortName[] = "\\\\.\\COM2"; // Name of the Serial port(May Change) to be opened,
-	char   lpBuffer[32] = "A";		       // lpBuffer should be  char or byte array, otherwise write wil fail
+	char   lpBuffer[32];		       // lpBuffer should be  char or byte array, otherwise write wil fail
 	DWORD  dNoOFBytestoWrite;              // No of bytes to write into the port
 	DWORD  dNoOfBytesWritten = 0;          // No of bytes written to the port
 	strcpy(lpBuffer,write_buff);
 
-	dNoOFBytestoWrite = sizeof(lpBuffer); // Calculating the no of bytes to write into the port
+	//dNoOFBytestoWrite = sizeof(lpBuffer); // Calculating the no of bytes to write into the port
+	dNoOFBytestoWrite = strlen(write_buff)+1;
 
 	Status = WriteFile(hComm,               // Handle to the Serialport
 					   lpBuffer,            // Data to be written to the port 
@@ -111,13 +127,12 @@ __declspec(dllexport) __stdcall void serialWrite(char* write_buff){
 					   &dNoOfBytesWritten,  // No of bytes written to the port
 					   NULL);
 	
-	if (Status == TRUE)
-		printf("%s - Written to %s\n", lpBuffer, ComPortName);
-	else
+	if (Status == FALSE){
 		printf("Error %d in Writing to Serial Port\n",GetLastError());
+		exit(1);
+	}
+		
 }
-
-
 
 __declspec(dllexport) __stdcall const char* serialRead(){
 
@@ -125,20 +140,18 @@ __declspec(dllexport) __stdcall const char* serialRead(){
 	BOOL  Status;                          // Status of the various operations 
 	DWORD dwEventMask;                     // Event mask to trigger
 	char  TempChar;                        // Temperory Character
-	char  SerialBuffer[32];               // Buffer Containing Rxed Data
+	char  SerialBuffer[32];                // Buffer Containing Rxed Data
 	DWORD NoBytesRead;                     // Bytes read by ReadFile()
 	int i = 0;
 	Status = SetCommMask(hComm, EV_RXCHAR); //Configure Windows to Monitor the serial device for Character Reception
 	
-	if (Status == FALSE)
+	if (Status == FALSE){
 		printf("Error! in Setting CommMask\n");
-	else
-		printf("Setting CommMask successfull\n");
+		exit(1);
+	}
 
 	
    /*------------------------------------ Setting WaitComm() Event   ----------------------------------------*/
-	
-	// printf("\n\n    Waiting for Data Reception");
 
 	Status = WaitCommEvent(hComm, &dwEventMask, NULL); //Wait for the character to be received
 
@@ -150,7 +163,6 @@ __declspec(dllexport) __stdcall const char* serialRead(){
 	}
 	else //If  WaitCommEvent()==True Read the RXed data using ReadFile();
 	{
-		// printf("\n\n    Characters Received");
 		do
 		{
 			Status = ReadFile(hComm, &TempChar, sizeof(TempChar), &NoBytesRead, NULL);
@@ -162,22 +174,16 @@ __declspec(dllexport) __stdcall const char* serialRead(){
 		
 
 		/*------------Printing the RXed String to Console----------------------*/
-
-		// printf("\n\n    ");
-		int j =0;
-		for (j = 0; j < i-1; j++){		// j < i-1 to remove the dupliated last character
-			// printf("%c", SerialBuffer[j]);
-			if(SerialBuffer[0]=='1')
-				read_buff[j] = SerialBuffer[j];
-			else
-				read_buff[j] = SerialBuffer[j+2];
-
+		int k=0;
+		while(!isdigit(SerialBuffer[k])&&(SerialBuffer[k]!='-')&&(SerialBuffer[k]!='+'))
+			k++;
+		int j = 0;
+		for (j = k; j < i-1; j++){		// j < i-1 to remove the dupliated last character
+			read_buff[j-k] = SerialBuffer[j];
 		}
-		read_buff[j] = '\0';
+		read_buff[j-k] = '\0';
 
-	}
-	printf("GOT: %s",SerialBuffer);
-	printf("READ: %s",read_buff);	
+	}	
 	return read_buff;
 }
 
@@ -195,9 +201,7 @@ __declspec(dllexport) __stdcall int serialStatus(){
 	return OK;
 }
 
-
-__declspec(dllexport) __stdcall int serialAvailable()
-{
+__declspec(dllexport) __stdcall int serialAvailable(){
 	unsigned long find=0;
 	DWORD dwErrorFlags;
 	COMSTAT ComStat;
@@ -210,13 +214,12 @@ __declspec(dllexport) __stdcall int serialAvailable()
 		OK = GetLastError();
 		return 0;
 	}
-	Sleep(1);
+	//Sleep(1);
 	find=ComStat.cbInQue;
-	return find;	
+	return find; 	
 }
 
-__declspec(dllexport) __stdcall void serialFlush()
-{
+__declspec(dllexport) __stdcall void serialFlush(){
 	int OK=0;
 	int res = PurgeComm(hComm,PURGE_RXABORT|PURGE_TXABORT|PURGE_RXCLEAR|PURGE_TXCLEAR);
 	if (res==0){
@@ -228,8 +231,7 @@ __declspec(dllexport) __stdcall void serialFlush()
 	_tprintf(TEXT("Flushed\n"));
 }
 
-__declspec(dllexport) __stdcall void serialWait()
-{
+__declspec(dllexport) __stdcall void serialWait(){
 	int OK=0;
 	LPDWORD event;
 	int res = WaitCommEvent(hComm,event,NULL);
@@ -241,8 +243,7 @@ __declspec(dllexport) __stdcall void serialWait()
 	}
 }
 
-__declspec(dllexport) __stdcall void serialEnd()
-{
+__declspec(dllexport) __stdcall void serialEnd(){
 	int OK=0;
 	int res = CloseHandle(hComm);
 	if (res==0){
