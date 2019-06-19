@@ -17,7 +17,7 @@ void loop()
 
     processValue = readVal.toDouble(); //change value datatype from string to double
 
-    if(readAddr.toDouble()>=0){
+    if(isDigit(readAddr[0])){
     lastError = Error;
     Error = setPoint - processValue;
     Integral = Integral + Error;
