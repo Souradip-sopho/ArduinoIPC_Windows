@@ -12,6 +12,43 @@ TCHAR szName2[]=TEXT("Global\\MyFileMappingObject2");
 HANDLE hMapFile1;
 HANDLE hMapFile2;
 
+int shmBegin()
+{
+	hMapFile1 = CreateFileMapping(
+	           INVALID_HANDLE_VALUE,    // use paging file
+	           NULL,                    // default security
+	           PAGE_READWRITE,          // read/write access
+	           0,                       // maximum object size (high-order DWORD)
+	           BUF_SIZE,                // maximum object size (low-order DWORD)
+	           szName1);                 // name of mapping object
+	if (hMapFile1 == NULL)
+	{
+		_tprintf(TEXT("Could not create file mapping object (%d).\n"),
+		     GetLastError());
+		return 1;
+	}
+	hMapFile2 = CreateFileMapping(
+	             INVALID_HANDLE_VALUE,    // use paging file
+	             NULL,                    // default security
+	             PAGE_READWRITE,          // read/write access
+	             0,                       // maximum object size (high-order DWORD)
+	             BUF_SIZE,                // maximum object size (low-order DWORD)
+	             szName2);                 // name of mapping object
+	if (hMapFile2 == NULL)
+	{
+		_tprintf(TEXT("Could not create file mapping object (%d).\n"),
+		     GetLastError());
+		return 1;
+	}
+	return 0;
+}
+
+void shmEnd()
+{
+	CloseHandle(hMapFile1);
+	CloseHandle(hMapFile2);
+}
+
 __declspec(dllexport)  __stdcall double shmWrite(int num1,double tagValue)
 {
 
