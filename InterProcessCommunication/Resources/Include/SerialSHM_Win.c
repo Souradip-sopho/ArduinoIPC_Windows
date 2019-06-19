@@ -160,7 +160,7 @@ int main()
 	if(OK!=0)
 		return 0;
 
-	char prevData[]="-1,0\n";
+	char prevData[]="*,0\n";
 	int flag = 0;
 
 	while(1)
