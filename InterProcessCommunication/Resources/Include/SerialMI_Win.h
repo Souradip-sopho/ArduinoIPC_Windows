@@ -15,205 +15,243 @@
 #include <tchar.h>
 #include <io.h>
 
-
-
-//#ifdef _WIN32
 #include <Windows.h>
-//#else
-//#include <unistd.h>
-//#endif
 
-#define MAXPORTS 5 //unused : can be used to opened several COM to have several Arduino card
+HANDLE hComm;                          // Handle to the Serial port		
 
-// Static definition to stock HANDLE of Port.
-static HANDLE hport;
+char ComPortName[32]; // Name of the Serial port(May Change) to be opened,
 
-// Function to open port COM
-__declspec(dllexport)  __stdcall int serialBegin(int *port, int *baudrate){
-	DCB dcbSerialParams ;
-	DWORD dwBytesWrite = 0;
-	DWORD dwBytesRead = 10;
-	COMMTIMEOUTS timeouts={0};
-
-	int OK;
-
-	char tmp[5]="COM5";
-	itoa(*port,&tmp[3],10);
-
-	OK=0;
-
-
-  	hport = CreateFile(tmp,
-							GENERIC_READ | GENERIC_WRITE,
-							0,//FILE_SHARE_READ | FILE_SHARE_WRITE //to test : recuperation COM port if simulation crashes
-							0,
-							OPEN_EXISTING,
-							FILE_ATTRIBUTE_NORMAL,
-							0);
-
-	if(hport==INVALID_HANDLE_VALUE){
-	  if(GetLastError()==ERROR_FILE_NOT_FOUND){
-	     //serial port does not exist. Inform user.
-	     OK = GetLastError();
-		 return OK;
-	  }
-	//some other error occurred. Inform user.
-	  OK = GetLastError();
-	  return OK;
-	}
+__declspec(dllexport)  __stdcall void serialBegin(int *port, int *baudrate){
+		
+		BOOL   Status;
+		
+		/*----------------------------------- Setting the Serial Port Name & Baurate--------------------------------------------*/
+		sprintf(ComPortName,"\\\\.\\COM%d",*port);
+		int BDR = CBR_9600;
+		switch(*baudrate)
+		{
+			case 110: {BDR = CBR_110;break;}
+			case 300: {BDR = CBR_300;break;}
+			case 600: {BDR = CBR_600;break;}
+			case 1200: {BDR = CBR_1200;break;}
+			case 2400: {BDR = CBR_2400;break;}
+			case 4800: {BDR = CBR_4800;break;}
+			case 9600: {BDR = CBR_9600;break;}
+			case 14400: {BDR = CBR_14400;break;}
+			case 19200: {BDR = CBR_19200;break;}
+			case 38400: {BDR = CBR_38400;break;}
+			case 56000: {BDR = CBR_56000;break;}
+			case 57600: {BDR = CBR_57600;break;}
+			case 115200: {BDR = CBR_115200;break;}
+			case 128000: {BDR = CBR_128000;break;}
+			case 256000: {BDR = CBR_256000;break;}
+			default: break;
+		}
 
 
+		/*----------------------------------- Opening the Serial Port --------------------------------------------*/
 
-	dcbSerialParams.DCBlength=sizeof(dcbSerialParams);
-	if (!GetCommState(hport, &dcbSerialParams)) {
-	//error getting state
-	     OK = GetLastError();
-		 return OK;
-	}
+		hComm = CreateFile( ComPortName,                       // Name of the Port to be Opened
+							GENERIC_READ | GENERIC_WRITE,      // Read/Write Access
+							0,                                 // No Sharing, ports cant be shared
+							NULL,                              // No Security
+							OPEN_EXISTING,                     // Open existing port only
+							0,                                 // Non Overlapped I/O
+							NULL);                             // Null for Comm Devices
 
-	dcbSerialParams.BaudRate=*baudrate;
-	dcbSerialParams.ByteSize=8;
-	dcbSerialParams.StopBits=ONESTOPBIT;
-	dcbSerialParams.Parity=NOPARITY;
-	if(!SetCommState(hport, &dcbSerialParams)){
-		//error setting serial port state
-	    OK = GetLastError();
-		return OK;
-	}
+		if (hComm == INVALID_HANDLE_VALUE){
+			printf("Error! - Port %s can't be opened\n", ComPortName);
+			exit(1);
+		}
+		else 
+			printf("Port %s Opened\n", ComPortName);
+
+		
+		/*------------------------------- Setting the Parameters for the SerialPort ------------------------------*/
+
+		DCB dcbSerialParams = { 0 };                        // Initializing DCB structure
+		dcbSerialParams.DCBlength = sizeof(dcbSerialParams);
+		
+		Status = GetCommState(hComm, &dcbSerialParams);     //retreives  the current settings
+
+		if (Status == FALSE){
+			printf("Error! in GetCommState()\n");
+			exit(1);
+		}
 
 
-	timeouts.ReadIntervalTimeout=50;
-	timeouts.ReadTotalTimeoutConstant=50;
-	timeouts.ReadTotalTimeoutMultiplier=1;
-	timeouts.WriteTotalTimeoutConstant=50;
-	timeouts.WriteTotalTimeoutMultiplier=1;
-	if(!SetCommTimeouts(hport, &timeouts)){
-	//error occureed. Inform user
-		OK = GetLastError();
-	    return OK;
-	}
-	Sleep(1000);
-	_tprintf("Serial connection established.\n");
-	return 0;
+		dcbSerialParams.BaudRate = BDR;    // Setting BaudRate = *baudrate
+		dcbSerialParams.ByteSize = 8;             // Setting ByteSize = 8
+		dcbSerialParams.StopBits = ONESTOPBIT;    // Setting StopBits = 1
+		dcbSerialParams.Parity   = NOPARITY;      // Setting Parity = None 
+
+		Status = SetCommState(hComm, &dcbSerialParams);  //Configuring the port according to settings in DCB 
+
+		if (Status == FALSE)
+		{
+			printf("Error! in Setting DCB Structure\n");
+			exit(1);
+		}
+		
+		/*------------------------------------ Setting Timeouts --------------------------------------------------*/
+		
+		COMMTIMEOUTS timeouts = { 0 };
+
+		timeouts.ReadIntervalTimeout         = 50;
+		timeouts.ReadTotalTimeoutConstant    = 50;
+		timeouts.ReadTotalTimeoutMultiplier  = 10;
+		timeouts.WriteTotalTimeoutConstant   = 50;
+		timeouts.WriteTotalTimeoutMultiplier = 10;
+
+		if (SetCommTimeouts(hComm, &timeouts) == FALSE){
+			printf("Error! in Setting Time Outs\n");
+			exit(1);
+		}
+
 }
 
+__declspec(dllexport) __stdcall void serialWrite(char* write_buff){
 
-__declspec (dllexport) __stdcall void serialWrite(char* write_buff){
-	DWORD dwBytesWrite = 0;
-	int res;
-	int OK=0;
-	res = WriteFile(hport,write_buff,strlen(write_buff),&dwBytesWrite,NULL);
-	if (res==0) //error
-	{
-		OK = GetLastError();
-		fprintf(stderr, "Error in writing data (%d).",OK);
+	BOOL   Status;
+	char   lpBuffer[32];		       // lpBuffer should be  char or byte array, otherwise write wil fail
+	DWORD  dNoOFBytestoWrite;              // No of bytes to write into the port
+	DWORD  dNoOfBytesWritten = 0;          // No of bytes written to the port
+	strcpy(lpBuffer,write_buff);
+
+	//dNoOFBytestoWrite = sizeof(lpBuffer); // Calculating the no of bytes to write into the port
+	dNoOFBytestoWrite = strlen(write_buff)+1;
+
+	Status = WriteFile(hComm,               // Handle to the Serialport
+					   lpBuffer,            // Data to be written to the port 
+					   dNoOFBytestoWrite,   // No of bytes to write into the port
+					   &dNoOfBytesWritten,  // No of bytes written to the port
+					   NULL);
+	
+	if (Status == FALSE){
+		printf("Error %d in Writing to Serial Port\n",GetLastError());
 		exit(1);
 	}
+		
 }
 
-__declspec (dllexport) __stdcall int serialStatus(){
-	DWORD dwErrorFlags;
-	COMSTAT ComStat;
-	int res;
-
-	int OK=0;
-	res=ClearCommError( hport, &dwErrorFlags, &ComStat );
-	if (res==0) {//error
-		OK = GetLastError();
-	}
-	//*nbread=ComStat.cbInQue;
-	//*nbwrite=ComStat.cbOutQue;
-	return OK;
-}
-
-__declspec (dllexport) __stdcall const char* serialRead(){
+__declspec(dllexport) __stdcall const char* serialRead(){
 
 	static char read_buff[32]="";
-	DWORD dwBytesRead = 0;
-	int byte_r = ReadFile(hport, read_buff, 32, &dwBytesRead, NULL);
-	if(byte_r==0)
-	{
-		_tprintf(TEXT("Error reading Serial Port (%d).n"),GetLastError());
-		return "";
+	BOOL  Status;                          // Status of the various operations 
+	DWORD dwEventMask;                     // Event mask to trigger
+	char  TempChar;                        // Temperory Character
+	char  SerialBuffer[32];                // Buffer Containing Rxed Data
+	DWORD NoBytesRead;                     // Bytes read by ReadFile()
+	int i = 0;
+	Status = SetCommMask(hComm, EV_RXCHAR); //Configure Windows to Monitor the serial device for Character Reception
+	
+	if (Status == FALSE){
+		printf("Error! in Setting CommMask\n");
+		exit(1);
 	}
-	char temp_char='\0';
-	int i=0;
-	for(i=0; i<32; i++)
-	{
-		temp_char=read_buff[i];	
-		//int byte_r = ReadFile(hport, &temp_char, 1, &dwBytesRead, NULL);
-		if(temp_char == '\n') break;	
 
-		//read_buff[i] = temp_char;
+	
+   /*------------------------------------ Setting WaitComm() Event   ----------------------------------------*/
+
+	Status = WaitCommEvent(hComm, &dwEventMask, NULL); //Wait for the character to be received
+
+	/*-------------------------- Program will Wait here till a Character is received ------------------------*/				
+
+	if (Status == FALSE)
+	{
+		printf("Error! in Setting WaitCommEvent()\n");
 	}
-	read_buff[i] = '\0';
-	printf("%s\n",read_buff);
+	else //If  WaitCommEvent()==True Read the RXed data using ReadFile();
+	{
+		do
+		{
+			Status = ReadFile(hComm, &TempChar, sizeof(TempChar), &NoBytesRead, NULL);
+			SerialBuffer[i] = TempChar;
+			i++;
+	    }
+		while (NoBytesRead > 0);
+
+		
+
+		/*------------Printing the RXed String to Console----------------------*/
+		int k=0;
+		while(!isdigit(SerialBuffer[k])&&(SerialBuffer[k]!='-')&&(SerialBuffer[k]!='+'))
+			k++;
+		int j = 0;
+		for (j = k; j < i-1; j++){		// j < i-1 to remove the dupliated last character
+			read_buff[j-k] = SerialBuffer[j];
+		}
+		read_buff[j-k] = '\0';
+
+	}	
 	return read_buff;
 }
 
-__declspec (dllexport) __stdcall int serialAvailable()
-{
-	unsigned long find;
-	//ioctlsocket((SOCKET)hport, FIONREAD, &find);
-	//char buffer[32]="";
-	//unsigned long returned;
-	//int res=DeviceIoControl(hport,FSCTL_CREATE_OR_GET_OBJECT_ID,NULL,0,&find,sizeof(int),&returned,sizeof(int));
+__declspec(dllexport) __stdcall int serialStatus(){
 	DWORD dwErrorFlags;
 	COMSTAT ComStat;
 	int res;
 
 	int OK=0;
-	res=ClearCommError( hport, &dwErrorFlags, &ComStat );
-	if (res==0) {//error
+	res=ClearCommError( hComm, &dwErrorFlags, &ComStat );
+	if (res==0) {
+		//error
+		OK = GetLastError();
+	}
+	return OK;
+}
+
+__declspec(dllexport) __stdcall int serialAvailable(){
+	unsigned long find=0;
+	DWORD dwErrorFlags;
+	COMSTAT ComStat;
+	int res;
+
+	int OK=0;
+	res=ClearCommError( hComm, &dwErrorFlags, &ComStat );
+	if (res==0) {
+		//error
 		OK = GetLastError();
 		return 0;
 	}
-	Sleep(1);
+	//Sleep(1);
 	find=ComStat.cbInQue;
-	if (find<32)
-		return find;
-	else
-		return 0;
+	return find; 	
 }
 
-__declspec (dllexport) __stdcall void serialFlush()
-{
+__declspec(dllexport) __stdcall void serialFlush(){
 	int OK=0;
-	int res = PurgeComm(hport,PURGE_RXABORT|PURGE_TXABORT|PURGE_RXCLEAR|PURGE_TXCLEAR);
-	if (res==0)//error
-	{
+	int res = PurgeComm(hComm,PURGE_RXABORT|PURGE_TXABORT|PURGE_RXCLEAR|PURGE_TXCLEAR);
+	if (res==0){
+		//error
 		OK = GetLastError();
 		_tprintf(TEXT("Error in Serial Flush (%d).\n"),OK);
 		exit(1);
 	}
-	//return OK;
+	_tprintf(TEXT("Flushed\n"));
 }
 
-__declspec (dllexport) __stdcall void serialWait()
-{
+__declspec(dllexport) __stdcall void serialWait(){
 	int OK=0;
 	LPDWORD event;
-	int res = WaitCommEvent(hport,event,NULL);
+	int res = WaitCommEvent(hComm,event,NULL);
 	if (res==0)//error
 	{
 		OK = GetLastError();
 		_tprintf(TEXT("Error in Serial Wait (%d).\n"),OK);
 		exit(1);
 	}
-	//return OK;
 }
 
-__declspec (dllexport) __stdcall void serialEnd()
-{
+__declspec(dllexport) __stdcall void serialEnd(){
 	int OK=0;
-	int res = CloseHandle(hport);
-	if (res==0)//error
-	{
+	int res = CloseHandle(hComm);
+	if (res==0){
+		//error
 		OK = GetLastError();
 		_tprintf(TEXT("Error Closing Serial Port (%d).\n"),OK);
 		exit(1);
 	}
-	//return OK;
 }
 
 #endif //SerialMI_Win.h
