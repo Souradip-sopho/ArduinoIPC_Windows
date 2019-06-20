@@ -10,25 +10,25 @@ Main features:
   * (Soft) real-time synchronization of a simulation.
   
 Please note that the library is known to work with
-* OpenModelica (partial support starting with OpenModelica v1.11.0, e.g.serial port).
+* OpenModelica (partial support starting with OpenModelica v1.11.0, e.g. serial port).
 
 ## Prerequisites
-  * `OpenModelica` (>= v1.11.0) (https://www.openmodelica.org/download/download-linux)
-  * `Modelica_DeviceDrivers` (v1.5.1) (https://github.com/modelica/Modelica_DeviceDrivers/releases/tag/v1.5.1)
+  * `OpenModelica` (>= v1.11.0) (https://www.openmodelica.org/download/download-windows)
+  * `Modelica_DeviceDrivers` (v1.7.1) (https://github.com/modelica/Modelica_DeviceDrivers/releases/tag/v1.7.1)
   * `Servomechanisms`(https://github.com/afrhu/Servomechanisms.git)
 
 
 * Install and Run:
-Launch OMEdit with admin priviledeges and load the package `HIL_Arduino`(HIL\_ArduinoIPC/package.mo) and `InterProcessCommunication`(InterProcessCommunication/package.mo).Also, load the `Servomechanisms` package. Load the Arduino platform with the `IPCArdNew.ino` code in ArduinoCode/IPCArdNew directory. Create any model using the package and simulate.
+Launch OMEdit with admin priviledeges and load the package `HIL_ArduinoIPC`(HIL\_ArduinoIPC/package.mo) and `InterProcessCommunication`(InterProcessCommunication/package.mo). Also, load the `Servomechanisms` package. Load the Arduino platform with the `IPCArdNew.ino` code in ArduinoCode/IPCArdNew directory. Create any model using the package and simulate.
 
 ## Running Test Simulation
-  Test the package using `package.mo` test provided.
+  Test the package using `HIL_Arduino_servomech.mo` test provided.
   * Load the Arduino platform with the `IPCArdNew.ino` code.
   * Compile the SerialSHM_Win.c file in HIL\_ArduinoIPC/Resources/Include using the following command
   ```
   $ gcc SerialSHM_Win.c -o SerialSHM_Win -lws2_32
   ```
-  * Execute the SerialSHM_Win file in CMD windows using the following command
+  * Execute the SerialSHM_Win file in command prompt using the following command
   ```
   $ Serial_SHM.exe
   ```
